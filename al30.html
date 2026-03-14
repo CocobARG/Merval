@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AL30 — Flujo de Fondos</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0a0e14;
+      --surface:   #111720;
+      --border:    #1e2a38;
+      --accent:    #00d4ff;
+      --accent2:   #00ff9d;
+      --muted:     #4a6080;
+      --text:      #cdd9e8;
+      --text-dim:  #6b8099;
+      --paid:      #1a3a2a;
+      --paid-text: #3fb97a;
+      --next:      #1a2e3a;
+      --next-text: #00d4ff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+
+    /* grid noise texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* HEADER */
+    .header {
+      margin-bottom: 36px;
+    }
+
+    .ticker-row {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 6px;
+    }
+
+    .ticker {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 2.4rem;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    .badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 2px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      font-weight: 300;
+      letter-spacing: 0.5px;
+    }
+
+    /* STATS STRIP */
+    .stats {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 14px 20px;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .stat:first-child { border-radius: 4px 0 0 4px; }
+    .stat:last-child  { border-radius: 0 4px 4px 0; }
+
+    .stat-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .stat-value.green { color: var(--accent2); }
+    .stat-value.blue  { color: var(--accent); }
+
+    /* TABLE */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .table-title {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-title span { color: var(--accent2); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      padding: 10px 20px;
+      text-align: right;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      background: #0d1520;
+      font-weight: 400;
+    }
+
+    thead th:first-child { text-align: left; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #151f2e; }
+
+    tbody tr.paid {
+      background: var(--paid);
+      opacity: 0.7;
+    }
+
+    tbody tr.paid td { color: var(--paid-text); }
+
+    tbody tr.next-payment {
+      background: var(--next);
+    }
+
+    tbody tr.next-payment td { color: var(--next-text); }
+
+    td {
+      padding: 13px 20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.82rem;
+      text-align: right;
+      color: var(--text);
+    }
+
+    td:first-child {
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.6rem;
+      padding: 2px 6px;
+      border-radius: 2px;
+      margin-left: 8px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+
+    .tag-paid { background: #1a4a2a; color: #3fb97a; }
+    .tag-next { background: #0e2a3a; color: #00d4ff; border: 1px solid #00d4ff44; }
+
+    .cap-restante { color: var(--text-dim); }
+
+    /* totals row */
+    tfoot td {
+      padding: 14px 20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.82rem;
+      text-align: right;
+      border-top: 1px solid var(--accent);
+      color: var(--accent2);
+      font-weight: 600;
+    }
+
+    tfoot td:first-child { text-align: left; color: var(--accent); }
+
+    /* progress bar */
+    .progress-section {
+      margin-top: 24px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      border-radius: 2px;
+      transition: width 0.8s ease;
+    }
+
+    .footnote {
+      margin-top: 20px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="ticker-row">
+      <span class="ticker">AL30</span>
+      <span class="badge">Ley Argentina</span>
+    </div>
+    <p class="subtitle">Bono Soberano República Argentina · USD Step-Up · Vencimiento 09/07/2030</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Precio cierre</div>
+      <div class="stat-value blue">USD 60,80</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Por c/100 VN</div>
+      <div class="stat-value">13/03/2026</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">TIR aprox.</div>
+      <div class="stat-value green">9,26%</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Vencimiento</div>
+      <div class="stat-value">09/07/2030</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Capital restante</div>
+      <div class="stat-value blue">USD 72,00</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Emisión</div>
+      <div class="stat-value">04/09/2020</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-title">
+      Flujo de fondos remanente &nbsp;—&nbsp; por cada <span>USD 100 VN</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha de pago</th>
+          <th>Interés (USD)</th>
+          <th>Amortización (USD)</th>
+          <th>Total (USD)</th>
+          <th>Capital restante</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="next-payment">
+          <td>09/07/2026 <span class="tag tag-next">próximo</span></td>
+          <td>0,27</td>
+          <td>8,00</td>
+          <td>8,27</td>
+          <td class="cap-restante">64,00</td>
+        </tr>
+        <tr>
+          <td>09/01/2027</td>
+          <td>0,24</td>
+          <td>8,00</td>
+          <td>8,24</td>
+          <td class="cap-restante">56,00</td>
+        </tr>
+        <tr>
+          <td>09/07/2027</td>
+          <td>0,21</td>
+          <td>8,00</td>
+          <td>8,21</td>
+          <td class="cap-restante">48,00</td>
+        </tr>
+        <tr>
+          <td>09/01/2028</td>
+          <td>0,42</td>
+          <td>8,00</td>
+          <td>8,42</td>
+          <td class="cap-restante">40,00</td>
+        </tr>
+        <tr>
+          <td>09/07/2028</td>
+          <td>0,35</td>
+          <td>8,00</td>
+          <td>8,35</td>
+          <td class="cap-restante">32,00</td>
+        </tr>
+        <tr>
+          <td>09/01/2029</td>
+          <td>0,28</td>
+          <td>8,00</td>
+          <td>8,28</td>
+          <td class="cap-restante">24,00</td>
+        </tr>
+        <tr>
+          <td>09/07/2029</td>
+          <td>0,21</td>
+          <td>8,00</td>
+          <td>8,21</td>
+          <td class="cap-restante">16,00</td>
+        </tr>
+        <tr>
+          <td>09/01/2030</td>
+          <td>0,14</td>
+          <td>8,00</td>
+          <td>8,14</td>
+          <td class="cap-restante">8,00</td>
+        </tr>
+        <tr>
+          <td>09/07/2030</td>
+          <td>0,07</td>
+          <td>8,00</td>
+          <td>8,07</td>
+          <td class="cap-restante">0,00</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>TOTAL REMANENTE</td>
+          <td>1,99</td>
+          <td>72,00</td>
+          <td>73,99</td>
+          <td>—</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="progress-section">
+    <div class="progress-label">
+      <span>Amortización acumulada</span>
+      <span>28 / 100 VN amortizados (28%)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: 28%"></div>
+    </div>
+  </div>
+
+  <p class="footnote">
+    * Flujo por cada USD 100 de Valor Nominal. Capital ya amortizado: USD 28 (pagos 1–3 del 09/07/2023 al 09/07/2025). 
+    Precio de cierre al 13/03/2026. Fuente: prospecto oficial BYMA / data912.com.
+  </p>
+
+</div>
+</body>
+</html>
