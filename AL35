@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AL35 — Análisis Completo</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#0a0e14;--surface:#111720;--surface2:#0d1520;--border:#1e2a38;
+      --accent:#00d4ff;--accent2:#00ff9d;--pos:#3fb97a;--neg:#e24b4a;
+      --muted:#4a6080;--text:#cdd9e8;--dim:#6b8099;
+      --next:#1a2e3a;--next-text:#00d4ff;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;padding:40px 24px 60px;}
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.02) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+    .container{max-width:900px;margin:0 auto;position:relative;z-index:1;}
+    .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;}
+    .nav-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px;border:1px solid #1e2a38;background:#111720;color:#6b8099;font-size:0.8rem;font-weight:600;text-decoration:none;transition:border-color .15s,color .15s;font-family:'IBM Plex Sans',sans-serif;}
+    .nav-btn:hover{border-color:#00d4ff;color:#00d4ff;}
+    .nav-btn.active{border-color:#00d4ff;color:#00d4ff;background:#0d2044;}
+    .header{margin-bottom:32px;}
+    .ticker-row{display:flex;align-items:baseline;gap:16px;margin-bottom:6px;}
+    .ticker{font-family:'IBM Plex Mono',monospace;font-size:2.4rem;font-weight:600;color:var(--accent);letter-spacing:-1px;line-height:1;}
+    .badge{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:2px;border:1px solid var(--accent);color:var(--accent);letter-spacing:1px;text-transform:uppercase;}
+    .subtitle{font-size:0.85rem;color:var(--dim);font-weight:300;letter-spacing:0.5px;}
+    .stats{display:flex;gap:2px;margin-bottom:32px;flex-wrap:wrap;}
+    .stat{background:var(--surface);border:1px solid var(--border);padding:14px 20px;flex:1;min-width:120px;}
+    .stat:first-child{border-radius:4px 0 0 4px;}.stat:last-child{border-radius:0 4px 4px 0;}
+    .stat-label{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;}
+    .stat-value{font-family:'IBM Plex Mono',monospace;font-size:1.05rem;font-weight:600;color:var(--text);}
+    .stat-value.green{color:var(--accent2);}.stat-value.blue{color:var(--accent);}
+    .section-title{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:36px 0 16px;display:flex;align-items:center;gap:10px;}
+    .section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+    .legend{display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap;}
+    .legend-item{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:var(--dim);}
+    .legend-dot{width:10px;height:10px;border-radius:2px;}
+    .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+    .table-title{padding:14px 20px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:0.7rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;}
+    .table-title span{color:var(--accent2);}
+    .table-header{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+    .table-header-label{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+    .table-header-note{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:var(--dim);}
+    table{width:100%;border-collapse:collapse;}
+    thead th{padding:10px 16px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--surface2);font-weight:400;}
+    thead th:first-child{text-align:left;}thead th:nth-child(2){text-align:center;}
+    tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+    tbody tr:last-child{border-bottom:none;}
+    tbody tr:hover{background:#151f2e;}
+    tbody tr.next-payment{background:var(--next);}
+    tbody tr.next-payment td{color:var(--next-text);}
+    tbody tr.amort-start{border-top:1px solid #2a3a50;}
+    tbody tr.current-sens{background:#0e2035;}
+    td{padding:11px 16px;font-family:'IBM Plex Mono',monospace;font-size:0.8rem;text-align:right;color:var(--text);}
+    td:first-child{text-align:left;font-weight:600;}td:nth-child(2){text-align:center;}
+    .cap-restante{color:var(--dim);}.amort-val{color:var(--accent2);font-weight:500;}
+    .int-val{color:#a0c4e8;}.zero{color:var(--muted);}
+    .pos-val{color:var(--pos);font-weight:500;}.neg-val{color:var(--neg);font-weight:500;}
+    .tag{display:inline-block;font-size:0.6rem;padding:2px 6px;border-radius:2px;margin-left:8px;letter-spacing:1px;text-transform:uppercase;vertical-align:middle;}
+    .tag-next{background:#0e2a3a;color:#00d4ff;border:1px solid #00d4ff44;}
+    .tag-amort{background:#0e3a1a;color:#00ff9d;border:1px solid #00ff9d33;}
+    .cur-tag{display:inline-block;font-size:0.58rem;padding:1px 6px;border-radius:2px;background:#0e2a3a;color:var(--accent);border:1px solid #00d4ff44;letter-spacing:1px;text-transform:uppercase;margin-left:8px;vertical-align:middle;}
+    tfoot td{padding:14px 16px;font-family:'IBM Plex Mono',monospace;font-size:0.8rem;text-align:right;border-top:1px solid var(--accent);color:var(--accent2);font-weight:600;}
+    tfoot td:first-child{text-align:left;color:var(--accent);}tfoot td:nth-child(2){text-align:center;}
+    .progress-section{margin-top:24px;}
+    .progress-label{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:var(--muted);letter-spacing:1px;margin-bottom:8px;}
+    .progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:2px;}
+    .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:20px;}
+    .chart-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+    .tir-display{font-family:'IBM Plex Mono',monospace;font-size:0.82rem;color:var(--dim);}
+    .tir-display span{color:var(--accent2);font-weight:600;}
+    .slider-row{display:flex;align-items:center;gap:12px;}
+    .slider-row label{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--dim);white-space:nowrap;}
+    input[type=range]{-webkit-appearance:none;appearance:none;width:180px;height:4px;background:var(--border);border-radius:2px;outline:none;}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;}
+    .slider-val{font-family:'IBM Plex Mono',monospace;font-size:0.82rem;font-weight:600;color:var(--accent);min-width:70px;text-align:right;}
+    .chart-canvas-wrap{position:relative;width:100%;height:300px;}
+    .footnote{margin-top:20px;font-size:0.72rem;color:var(--muted);font-style:italic;}
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="nav">
+    <a class="nav-btn" href="index.html">🏠 Inicio</a>
+    <a class="nav-btn" href="al30_completo.html">📄 AL30</a>
+    <a class="nav-btn active" href="al35.html">📄 AL35</a>
+  </div>
+
+  <div class="header">
+    <div class="ticker-row"><span class="ticker">AL35</span><span class="badge">Ley Argentina</span></div>
+    <p class="subtitle">Bono Soberano República Argentina · USD Step-Up · Vencimiento 10/07/2035</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Precio cierre</div><div class="stat-value blue">USD 74,62</div></div>
+    <div class="stat"><div class="stat-label">Fecha cierre</div><div class="stat-value">13/03/2026</div></div>
+    <div class="stat"><div class="stat-label">TIR</div><div class="stat-value green" id="tir-stat">—</div></div>
+    <div class="stat"><div class="stat-label">Capital residual</div><div class="stat-value blue">USD 100,00</div></div>
+    <div class="stat"><div class="stat-label">1ª amortización</div><div class="stat-value">09/01/2031</div></div>
+    <div class="stat"><div class="stat-label">Vencimiento</div><div class="stat-value">10/07/2035</div></div>
+  </div>
+
+  <div class="section-title">Flujo de fondos remanente</div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#a0c4e8"></div>TNA 4,125% (hasta jul-2027)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#00ff9d"></div>TNA 4,750% (jul-2027 / jul-2028)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e8c87a"></div>TNA 5,000% (desde jul-2028)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#00d4ff"></div>Próximo pago</div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-title">Por cada <span>USD 100 VN</span> · Pagos desde 13/03/2026</div>
+    <table>
+      <thead>
+        <tr><th>Fecha de pago</th><th>TNA vigente</th><th>Interés (USD)</th><th>Amortización (USD)</th><th>Total (USD)</th><th>Capital restante</th></tr>
+      </thead>
+      <tbody>
+        <tr class="next-payment"><td>10/07/2026 <span class="tag tag-next">próximo</span></td><td class="int-val">4,125%</td><td class="int-val">2,07</td><td class="zero">—</td><td>2,07</td><td class="cap-restante">100,00</td></tr>
+        <tr><td>11/01/2027</td><td class="int-val">4,125%</td><td class="int-val">2,05</td><td class="zero">—</td><td>2,05</td><td class="cap-restante">100,00</td></tr>
+        <tr><td>12/07/2027</td><td class="int-val">4,125%</td><td class="int-val">2,10</td><td class="zero">—</td><td>2,10</td><td class="cap-restante">100,00</td></tr>
+        <tr><td>10/01/2028</td><td class="amort-val">4,750%</td><td class="int-val">2,35</td><td class="zero">—</td><td>2,35</td><td class="cap-restante">100,00</td></tr>
+        <tr><td>10/07/2028</td><td class="amort-val">4,750%</td><td class="int-val">2,38</td><td class="zero">—</td><td>2,38</td><td class="cap-restante">100,00</td></tr>
+        <tr><td>09/01/2029</td><td style="color:#e8c87a">5,000%</td><td class="int-val">2,49</td><td class="zero">—</td><td>2,49</td><td class="cap-restante">100,00</td></tr>
+        <tr><td>10/07/2029</td><td style="color:#e8c87a">5,000%</td><td class="int-val">2,51</td><td class="zero">—</td><td>2,51</td><td class="cap-restante">100,00</td></tr>
+        <tr><td>09/01/2030</td><td style="color:#e8c87a">5,000%</td><td class="int-val">2,49</td><td class="zero">—</td><td>2,49</td><td class="cap-restante">100,00</td></tr>
+        <tr><td>10/07/2030</td><td style="color:#e8c87a">5,000%</td><td class="int-val">2,51</td><td class="zero">—</td><td>2,51</td><td class="cap-restante">100,00</td></tr>
+        <tr class="amort-start"><td>09/01/2031 <span class="tag tag-amort">1ª amort.</span></td><td style="color:#e8c87a">5,000%</td><td class="int-val">2,49</td><td class="amort-val">10,00</td><td>12,49</td><td class="cap-restante">90,00</td></tr>
+        <tr><td>10/07/2031</td><td style="color:#e8c87a">5,000%</td><td class="int-val">2,26</td><td class="amort-val">10,00</td><td>12,26</td><td class="cap-restante">80,00</td></tr>
+        <tr><td>09/01/2032</td><td style="color:#e8c87a">5,000%</td><td class="int-val">1,99</td><td class="amort-val">10,00</td><td>11,99</td><td class="cap-restante">70,00</td></tr>
+        <tr><td>12/07/2032</td><td style="color:#e8c87a">5,000%</td><td class="int-val">1,78</td><td class="amort-val">10,00</td><td>11,78</td><td class="cap-restante">60,00</td></tr>
+        <tr><td>10/01/2033</td><td style="color:#e8c87a">5,000%</td><td class="int-val">1,48</td><td class="amort-val">10,00</td><td>11,48</td><td class="cap-restante">50,00</td></tr>
+        <tr><td>11/07/2033</td><td style="color:#e8c87a">5,000%</td><td class="int-val">1,26</td><td class="amort-val">10,00</td><td>11,26</td><td class="cap-restante">40,00</td></tr>
+        <tr><td>09/01/2034</td><td style="color:#e8c87a">5,000%</td><td class="int-val">0,99</td><td class="amort-val">10,00</td><td>10,99</td><td class="cap-restante">30,00</td></tr>
+        <tr><td>10/07/2034</td><td style="color:#e8c87a">5,000%</td><td class="int-val">0,75</td><td class="amort-val">10,00</td><td>10,75</td><td class="cap-restante">20,00</td></tr>
+        <tr><td>09/01/2035</td><td style="color:#e8c87a">5,000%</td><td class="int-val">0,50</td><td class="amort-val">10,00</td><td>10,50</td><td class="cap-restante">10,00</td></tr>
+        <tr><td>10/07/2035</td><td style="color:#e8c87a">5,000%</td><td class="int-val">0,25</td><td class="amort-val">10,00</td><td>10,25</td><td class="cap-restante">0,00</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td>TOTAL REMANENTE</td><td>—</td><td>34,70</td><td>100,00</td><td>134,70</td><td>—</td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="progress-section">
+    <div class="progress-label"><span>Amortización acumulada</span><span>0 / 100 VN amortizados (0%) · 1ª cuota el 09/01/2031</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+  </div>
+
+  <div class="section-title">Curva precio — rendimiento</div>
+
+  <div class="chart-box">
+    <div class="chart-meta">
+      <div class="tir-display">Precio: <span id="tir-label">USD 74,62</span> &nbsp;→&nbsp; TIR: <span id="tir-value">—</span></div>
+      <div class="slider-row">
+        <label>Mover precio</label>
+        <input type="range" min="30" max="100" step="0.01" value="74.62" id="slider" />
+        <span class="slider-val" id="slider-out">74,62</span>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap"><canvas id="chart"></canvas></div>
+  </div>
+
+  <div class="section-title">Ganancia / pérdida de capital por yield</div>
+
+  <div class="table-wrap">
+    <div class="table-header">
+      <span class="table-header-label">Sensibilidad 100 bps · base USD 74,62</span>
+      <span class="table-header-note">Por c/100 VN</span>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Yield</th><th>Precio (USD)</th><th>Δ vs actual</th><th>Δ % capital</th><th>Cambio yield</th></tr>
+      </thead>
+      <tbody id="sens-body"></tbody>
+    </table>
+  </div>
+
+  <p class="footnote">
+    * Flujo por cada USD 100 VN. Sin amortizaciones previas al 13/03/2026.
+    Amortización: 10 cuotas de USD 10 desde 09/01/2031 hasta 10/07/2035.
+    Precio de cierre al 13/03/2026: USD 74,62. Cálculo por DCF con Newton-Raphson.
+    Fuente: prospecto oficial BYMA / inversoy.com.ar.
+  </p>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const CF = [
+  {t:0.329,cf:2.07},{t:0.826,cf:2.05},{t:1.331,cf:2.10},{t:1.826,cf:2.35},
+  {t:2.329,cf:2.38},{t:2.824,cf:2.49},{t:3.329,cf:2.51},{t:3.824,cf:2.49},
+  {t:4.329,cf:2.51},{t:4.824,cf:12.49},{t:5.329,cf:12.26},{t:5.824,cf:11.99},
+  {t:6.331,cf:11.78},{t:6.826,cf:11.48},{t:7.331,cf:11.26},{t:7.824,cf:10.99},
+  {t:8.329,cf:10.75},{t:8.824,cf:10.50},{t:9.329,cf:10.25},
+];
+
+function npv(r,price){let pv=-price;for(const{t,cf}of CF)pv+=cf/Math.pow(1+r,t);return pv;}
+function dnpv(r){let d=0;for(const{t,cf}of CF)d-=t*cf/Math.pow(1+r,t+1);return d;}
+function tirFromPrice(price){
+  let r=0.10;
+  for(let i=0;i<200;i++){
+    const f=npv(r,price),df=dnpv(r);
+    if(Math.abs(df)<1e-14)break;
+    const rn=r-f/df;
+    if(Math.abs(rn-r)<1e-10){r=rn;break;}
+    r=Math.max(-0.99,Math.min(10,rn));
+  }
+  return r;
+}
+function priceFromTir(r){let pv=0;for(const{t,cf}of CF)pv+=cf/Math.pow(1+r,t);return pv;}
+
+const PRICE_BASE=74.62;
+const TIR_BASE=tirFromPrice(PRICE_BASE);
+const TIR_BASE_PCT=+(TIR_BASE*100).toFixed(2);
+
+document.getElementById('tir-stat').textContent=TIR_BASE_PCT.toFixed(2)+'%';
+document.getElementById('tir-value').textContent=TIR_BASE_PCT.toFixed(2)+'%';
+
+const curveData=[];
+for(let p=30;p<=100.01;p+=0.5){
+  const pp=+p.toFixed(2);
+  curveData.push({x:pp,y:+(tirFromPrice(pp)*100).toFixed(4)});
+}
+function markerPoint(p){return[{x:+p.toFixed(2),y:+(tirFromPrice(p)*100).toFixed(4)}];}
+
+const chart=new Chart(document.getElementById('chart'),{
+  type:'scatter',
+  data:{datasets:[
+    {label:'Curva',data:curveData,borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,0.06)',borderWidth:2,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#00d4ff',showLine:true,fill:true,tension:0.3},
+    {label:'Selección',data:markerPoint(PRICE_BASE),borderColor:'#e24b4a',backgroundColor:'#e24b4a',borderWidth:0,pointRadius:8,pointHoverRadius:10,showLine:false}
+  ]},
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'nearest',intersect:false,axis:'x'},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#111720',borderColor:'#1e2a38',borderWidth:1,
+        titleColor:'#cdd9e8',bodyColor:'#6b8099',padding:10,
+        callbacks:{
+          title:()=>'',
+          label:item=>item.datasetIndex===0
+            ?['Precio:  USD '+item.parsed.x.toFixed(2),'TIR:       '+item.parsed.y.toFixed(2)+'%']
+            :['Precio actual:  USD '+item.parsed.x.toFixed(2),'TIR actual:       '+item.parsed.y.toFixed(2)+'%']
+        }
+      }
+    },
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Precio (USD por c/100 VN)',font:{size:11},color:'#4a6080'},ticks:{stepSize:5,callback:v=>'$'+v,color:'#4a6080',font:{size:10},maxTicksLimit:15},grid:{color:'rgba(30,42,56,0.8)'},min:30,max:100},
+      y:{title:{display:true,text:'TIR anual (%)',font:{size:11},color:'#4a6080'},ticks:{callback:v=>v.toFixed(1)+'%',color:'#4a6080',font:{size:10}},grid:{color:'rgba(30,42,56,0.8)'}}
+    }
+  }
+});
+
+const slider=document.getElementById('slider');
+slider.addEventListener('input',()=>{
+  const p=parseFloat(slider.value);
+  const tir=tirFromPrice(p)*100;
+  document.getElementById('slider-out').textContent=p.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('tir-label').textContent='USD '+p.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('tir-value').textContent=tir.toFixed(2)+'%';
+  chart.data.datasets[1].data=markerPoint(p);
+  chart.update('none');
+});
+
+const steps=[-400,-300,-200,-100,0,100,200,300,400,500,600];
+const tbody=document.getElementById('sens-body');
+steps.forEach(bps=>{
+  const yPct=+(TIR_BASE_PCT+bps/100).toFixed(2);
+  if(yPct<=0)return;
+  const r=yPct/100;
+  const price=priceFromTir(r);
+  const delta=price-PRICE_BASE;
+  const deltaPct=(delta/PRICE_BASE)*100;
+  const isBase=bps===0;
+  const bpsLabel=isBase?'— base':(bps>0?'+'+bps+' bps':bps+' bps');
+  const tr=document.createElement('tr');
+  if(isBase)tr.className='current-sens';
+  const tdY=document.createElement('td');
+  tdY.innerHTML=yPct.toFixed(2)+'%'+(isBase?'<span class="cur-tag">actual</span>':'');
+  const tdP=document.createElement('td');tdP.textContent=price.toFixed(2);
+  const tdD=document.createElement('td');tdD.className=delta>=0?'pos-val':'neg-val';tdD.textContent=(delta>=0?'+':'')+delta.toFixed(2);
+  const tdPct=document.createElement('td');tdPct.className=deltaPct>=0?'pos-val':'neg-val';tdPct.textContent=(deltaPct>=0?'+':'')+deltaPct.toFixed(2)+'%';
+  const tdB=document.createElement('td');tdB.style.color=isBase?'#00d4ff':'#4a6080';tdB.textContent=bpsLabel;
+  tr.appendChild(tdY);tr.appendChild(tdP);tr.appendChild(tdD);tr.appendChild(tdPct);tr.appendChild(tdB);
+  tbody.appendChild(tr);
+});
+</script>
+</body>
+</html>
