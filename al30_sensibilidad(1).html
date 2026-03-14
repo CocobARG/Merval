@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AL30 — Sensibilidad Precio / Rendimiento</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #0a0e14;
+      --surface:  #111720;
+      --surface2: #0d1520;
+      --border:   #1e2a38;
+      --accent:   #378ADD;
+      --accent2:  #00ff9d;
+      --pos:      #3fb97a;
+      --neg:      #e24b4a;
+      --muted:    #4a6080;
+      --text:     #cdd9e8;
+      --dim:      #6b8099;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      padding: 36px 24px 60px;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(55,138,221,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(55,138,221,0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none; z-index: 0;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; position: relative; z-index: 1; }
+
+    .header { margin-bottom: 28px; }
+    .ticker-row { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+    .ticker {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 2.2rem; font-weight: 600;
+      color: var(--accent); letter-spacing: -1px;
+    }
+    .badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem; font-weight: 600;
+      padding: 3px 10px; border-radius: 2px;
+      border: 1px solid var(--accent); color: var(--accent);
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .subtitle { font-size: 0.83rem; color: var(--dim); font-weight: 300; }
+
+    .stats {
+      display: flex; gap: 2px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+    .stat {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 12px 18px; flex: 1; min-width: 110px;
+    }
+    .stat:first-child { border-radius: 4px 0 0 4px; }
+    .stat:last-child  { border-radius: 0 4px 4px 0; }
+    .stat-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.62rem; color: var(--muted);
+      letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px;
+    }
+    .stat-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1.05rem; font-weight: 600; color: var(--text);
+    }
+    .stat-value.blue { color: var(--accent); }
+    .stat-value.green { color: var(--pos); }
+
+    .section-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem; color: var(--muted);
+      letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    .chart-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; padding: 20px; margin-bottom: 28px;
+    }
+    .chart-meta {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+    }
+    .slider-row {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .slider-row label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem; color: var(--dim); white-space: nowrap;
+    }
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      width: 180px; height: 4px;
+      background: var(--border); border-radius: 2px; outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+    }
+    .slider-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.82rem; font-weight: 600; color: var(--accent);
+      min-width: 70px; text-align: right;
+    }
+    .tir-display {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.82rem; color: var(--dim);
+    }
+    .tir-display span {
+      color: var(--accent2); font-weight: 600;
+    }
+    .chart-canvas-wrap {
+      position: relative; width: 100%; height: 300px;
+    }
+
+    /* SENSITIVITY TABLE */
+    .table-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; overflow: hidden;
+    }
+    .table-header {
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .table-header-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem; color: var(--muted);
+      letter-spacing: 2px; text-transform: uppercase;
+    }
+    .table-header-note {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem; color: var(--dim);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 9px 16px; text-align: right;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.62rem; color: var(--muted);
+      letter-spacing: 1.5px; text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2); font-weight: 400;
+    }
+    thead th:first-child { text-align: left; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #151f2e; }
+    tbody tr.current { background: #0e2035; }
+    td {
+      padding: 11px 16px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem; text-align: right; color: var(--text);
+    }
+    td:first-child { text-align: left; }
+    .pos-val { color: var(--pos); font-weight: 500; }
+    .neg-val { color: var(--neg); font-weight: 500; }
+    .cur-tag {
+      display: inline-block; font-size: 0.58rem;
+      padding: 1px 6px; border-radius: 2px;
+      background: #0e2a3a; color: var(--accent);
+      border: 1px solid #00d4ff44;
+      letter-spacing: 1px; text-transform: uppercase;
+      margin-left: 8px; vertical-align: middle;
+    }
+    .footnote {
+      margin-top: 20px; font-size: 0.7rem;
+      color: var(--muted); font-style: italic;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="ticker-row">
+      <span class="ticker">AL30</span>
+      <span class="badge">Sensibilidad</span>
+    </div>
+    <p class="subtitle">Curva Precio–Rendimiento · Ganancia/Pérdida de Capital por Yield · Venc. 09/07/2030</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Precio actual</div>
+      <div class="stat-value blue">USD 60,80</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">TIR actual</div>
+      <div class="stat-value green" id="tir-stat">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Capital residual</div>
+      <div class="stat-value">USD 72,00</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Duration mod.</div>
+      <div class="stat-value">2,07</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Vencimiento</div>
+      <div class="stat-value">09/07/2030</div>
+    </div>
+  </div>
+
+  <div class="section-title">Curva precio — rendimiento</div>
+
+  <div class="chart-box">
+    <div class="chart-meta">
+      <div class="tir-display">Precio: <span id="tir-label">USD 60,80</span> &nbsp;→&nbsp; TIR: <span id="tir-value">—</span></div>
+      <div class="slider-row">
+        <label>Mover precio</label>
+        <input type="range" min="30" max="72" step="0.01" value="60.80" id="slider" />
+        <span class="slider-val" id="slider-out">60,80</span>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
+  <div class="section-title">Ganancia / pérdida de capital por cambio de yield</div>
+
+  <div class="table-box">
+    <div class="table-header">
+      <span class="table-header-label">Sensibilidad 100 bps · base USD 60,80</span>
+      <span class="table-header-note">Por c/100 VN</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Yield</th>
+          <th>Precio (USD)</th>
+          <th>Δ vs actual</th>
+          <th>Δ % capital</th>
+          <th>Cambio yield</th>
+        </tr>
+      </thead>
+      <tbody id="sens-body"></tbody>
+    </table>
+  </div>
+
+  <p class="footnote">
+    * Cálculo por descuento de flujos (DCF) con Newton-Raphson. Flujo residual: 9 pagos semestrales, amortización USD 8 c/u, intereses según prospecto original. Precio de cierre al 13/03/2026: USD 60,80.
+  </p>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const CF = [
+  { t: 0.33, cf: 8.27 },
+  { t: 0.83, cf: 8.24 },
+  { t: 1.33, cf: 8.21 },
+  { t: 1.83, cf: 8.42 },
+  { t: 2.33, cf: 8.35 },
+  { t: 2.83, cf: 8.28 },
+  { t: 3.33, cf: 8.21 },
+  { t: 3.83, cf: 8.14 },
+  { t: 4.33, cf: 8.07 },
+];
+
+function npv(r, price) {
+  let pv = -price;
+  for (const {t, cf} of CF) pv += cf / Math.pow(1 + r, t);
+  return pv;
+}
+function dnpv(r) {
+  let d = 0;
+  for (const {t, cf} of CF) d -= t * cf / Math.pow(1 + r, t + 1);
+  return d;
+}
+function tirFromPrice(price) {
+  let r = 0.08;
+  for (let i = 0; i < 200; i++) {
+    const f = npv(r, price);
+    const df = dnpv(r);
+    if (Math.abs(df) < 1e-14) break;
+    const rn = r - f / df;
+    if (Math.abs(rn - r) < 1e-10) { r = rn; break; }
+    r = Math.max(-0.99, Math.min(10, rn));
+  }
+  return r;
+}
+function priceFromTir(r) {
+  let pv = 0;
+  for (const {t, cf} of CF) pv += cf / Math.pow(1 + r, t);
+  return pv;
+}
+
+const PRICE_BASE = 60.80;
+const TIR_BASE = tirFromPrice(PRICE_BASE);
+
+// Stat card
+document.getElementById('tir-stat').textContent = (TIR_BASE * 100).toFixed(2) + '%';
+
+// Chart data
+const prices = [], tirs = [];
+for (let p = 30; p <= 72.01; p += 0.25) {
+  const pp = +p.toFixed(2);
+  prices.push(pp);
+  tirs.push(+(tirFromPrice(pp) * 100).toFixed(4));
+}
+
+// Marker dataset
+function markerData(selPrice) {
+  return prices.map(p => Math.abs(p - selPrice) < 0.13 ? +(tirFromPrice(p) * 100).toFixed(4) : null);
+}
+
+const chart = new Chart(document.getElementById('chart'), {
+  type: 'line',
+  data: {
+    labels: prices,
+    datasets: [
+      {
+        label: 'TIR (%)',
+        data: tirs,
+        borderColor: '#378ADD',
+        backgroundColor: 'rgba(55,138,221,0.07)',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: true,
+        tension: 0.3,
+      },
+      {
+        label: 'Selección',
+        data: markerData(PRICE_BASE),
+        borderColor: '#D85A30',
+        backgroundColor: '#D85A30',
+        borderWidth: 0,
+        pointRadius: prices.map(p => Math.abs(p - PRICE_BASE) < 0.13 ? 7 : 0),
+        showLine: false,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#111720',
+        borderColor: '#1e2a38',
+        borderWidth: 1,
+        titleColor: '#cdd9e8',
+        bodyColor: '#6b8099',
+        callbacks: {
+          title: items => 'Precio: USD ' + Number(items[0].label).toFixed(2),
+          label: item => item.datasetIndex === 0 ? 'TIR: ' + Number(item.raw).toFixed(2) + '%' : null,
+        },
+        filter: item => item.datasetIndex === 0,
+      }
+    },
+    scales: {
+      x: {
+        type: 'linear',
+        title: { display: true, text: 'Precio (USD por c/100 VN)', font: { size: 11 }, color: '#4a6080' },
+        ticks: {
+          stepSize: 5,
+          callback: v => '$' + v,
+          color: '#4a6080', font: { size: 10 },
+          maxTicksLimit: 14,
+        },
+        grid: { color: 'rgba(30,42,56,0.8)' },
+        min: 30, max: 72,
+      },
+      y: {
+        title: { display: true, text: 'TIR anual (%)', font: { size: 11 }, color: '#4a6080' },
+        ticks: {
+          callback: v => v.toFixed(1) + '%',
+          color: '#4a6080', font: { size: 10 },
+        },
+        grid: { color: 'rgba(30,42,56,0.8)' },
+      }
+    }
+  }
+});
+
+// Slider
+const slider = document.getElementById('slider');
+slider.addEventListener('input', () => {
+  const p = parseFloat(slider.value);
+  const tir = tirFromPrice(p) * 100;
+  document.getElementById('slider-out').textContent = p.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById('tir-label').textContent = 'USD ' + p.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById('tir-value').textContent = tir.toFixed(2) + '%';
+  chart.data.datasets[1].data = markerData(p);
+  chart.update('none');
+});
+// Init label
+document.getElementById('tir-value').textContent = (TIR_BASE * 100).toFixed(2) + '%';
+document.getElementById('tir-label').textContent = 'USD 60,80';
+
+// SENSITIVITY TABLE
+// Yields from 5.50% to 15.00% each 100 bps
+const yields = [];
+for (let y = 5.50; y <= 15.01; y += 1.00) yields.push(+(y).toFixed(2));
+
+const tbody = document.getElementById('sens-body');
+yields.forEach(yPct => {
+  const r = yPct / 100;
+  const price = priceFromTir(r);
+  const delta = price - PRICE_BASE;
+  const deltaPct = (delta / PRICE_BASE) * 100;
+  const isBase = Math.abs(yPct - TIR_BASE * 100) < 0.55;
+  const bpsDiff = Math.round((yPct - TIR_BASE * 100) * 100);
+  const bpsLabel = bpsDiff === 0 ? 'base' : (bpsDiff > 0 ? '+' + bpsDiff + ' bps' : bpsDiff + ' bps');
+
+  const tr = document.createElement('tr');
+  if (isBase) tr.className = 'current';
+
+  const tdYield = document.createElement('td');
+  tdYield.innerHTML = yPct.toFixed(2) + '%' + (isBase ? '<span class="cur-tag">actual</span>' : '');
+
+  const tdPrice = document.createElement('td');
+  tdPrice.textContent = price.toFixed(2);
+
+  const tdDelta = document.createElement('td');
+  tdDelta.className = delta >= 0 ? 'pos-val' : 'neg-val';
+  tdDelta.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(2);
+
+  const tdPct = document.createElement('td');
+  tdPct.className = deltaPct >= 0 ? 'pos-val' : 'neg-val';
+  tdPct.textContent = (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(2) + '%';
+
+  const tdBps = document.createElement('td');
+  tdBps.style.color = '#4a6080';
+  tdBps.textContent = bpsLabel;
+
+  tr.appendChild(tdYield);
+  tr.appendChild(tdPrice);
+  tr.appendChild(tdDelta);
+  tr.appendChild(tdPct);
+  tr.appendChild(tdBps);
+  tbody.appendChild(tr);
+});
+</script>
+</body>
+</html>
