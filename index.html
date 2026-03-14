@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Merval en Tiempo Real</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      padding: 24px;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; color: #58a6ff; }
+    .sub { font-size: 0.8rem; color: #8b949e; margin-bottom: 8px; }
+    .aviso { font-size: 0.75rem; color: #e3b341; margin-bottom: 16px; }
+    #ultima { font-size: 0.75rem; color: #8b949e; margin-bottom: 16px; }
+    input {
+      background: #161b22;
+      border: 1px solid #30363d;
+      color: #e6edf3;
+      padding: 6px 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      width: 200px;
+      font-size: 0.85rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead th {
+      background: #161b22;
+      padding: 10px 14px;
+      text-align: left;
+      color: #8b949e;
+      font-weight: 600;
+      border-bottom: 1px solid #30363d;
+      cursor: pointer;
+    }
+    thead th:hover { color: #58a6ff; }
+    tbody tr:hover { background: #161b22; }
+    td { padding: 9px 14px; border-bottom: 1px solid #21262d; }
+    .ticker { font-weight: 700; color: #58a6ff; }
+    .pos { color: #3fb950; }
+    .neg { color: #f85149; }
+    .neu { color: #8b949e; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge.pos { background: #1a3a1f; color: #3fb950; }
+    .badge.neg { background: #3a1a1a; color: #f85149; }
+    .badge.neu { background: #1c2128; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <h1>📈 Merval — Cotizaciones</h1>
+  <p class="sub">Acciones argentinas · Moneda ARS · Fuente: data912.com</p>
+  <p class="aviso">⚠️ Datos con caché de ~2hs (Cloudflare). No son en tiempo real estricto.</p>
+  <div id="ultima">Cargando...</div>
+  <input type="text" id="filtro" placeholder="🔍 Buscar ticker..." oninput="filtrar()" />
+  <table>
+    <thead>
+      <tr>
+        <th onclick="sortBy('symbol')">Ticker ↕</th>
+        <th onclick="sortBy('c')">Último (ARS) ↕</th>
+        <th onclick="sortBy('pct_change')">Var. % ↕</th>
+        <th onclick="sortBy('px_bid')">Bid ↕</th>
+        <th onclick="sortBy('px_ask')">Ask ↕</th>
+        <th onclick="sortBy('v')">Volumen ↕</th>
+      </tr>
+    </thead>
+    <tbody id="body"></tbody>
+  </table>
+
+  <script>
+    let todos = [];
+    let sortDir = {};
+
+    function clase(v) {
+      if (v > 0) return 'pos';
+      if (v < 0) return 'neg';
+      return 'neu';
+    }
+
+    function fmt(n, dec = 2) {
+      if (n == null || isNaN(n)) return '—';
+      return Number(n).toLocaleString('es-AR', {
+        minimumFractionDigits: dec,
+        maximumFractionDigits: dec
+      });
+    }
+
+    function fmtVol(n) {
+      if (!n) return '—';
+      if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+      if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+      return n;
+    }
+
+    function render(data) {
+      const tbody = document.getElementById('body');
+      tbody.innerHTML = data.map(d => {
+        const vp = parseFloat(d.pct_change) || 0;
+        const c = clase(vp);
+        return `<tr>
+          <td class="ticker">${d.symbol}</td>
+          <td>${fmt(d.c)}</td>
+          <td><span class="badge ${c}">${vp > 0 ? '+' : ''}${fmt(vp)}%</span></td>
+          <td>${fmt(d.px_bid)}</td>
+          <td>${fmt(d.px_ask)}</td>
+          <td>${fmtVol(d.v)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function filtrar() {
+      const q = document.getElementById('filtro').value.toUpperCase();
+      render(todos.filter(d => d.symbol.includes(q)));
+    }
+
+    function sortBy(campo) {
+      sortDir[campo] = !sortDir[campo];
+      todos.sort((a, b) => {
+        const va = parseFloat(a[campo]) || a[campo] || '';
+        const vb = parseFloat(b[campo]) || b[campo] || '';
+        return sortDir[campo] ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+      });
+      filtrar();
+    }
+
+    async function cargar() {
+      document.getElementById('ultima').textContent = '⏳ Cargando...';
+      try {
+        const r = await fetch('https://data912.com/live/arg_stocks');
+        todos = await r.json();
+        document.getElementById('ultima').textContent =
+          '🕐 Última carga: ' + new Date().toLocaleTimeString('es-AR') +
+          ' · ' + todos.length + ' instrumentos';
+        filtrar();
+      } catch (e) {
+        document.getElementById('ultima').textContent = '❌ Error al cargar datos';
+      }
+    }
+
+    cargar();
+    setInterval(cargar, 120000); // refresca cada 2 minutos
+  </script>
+</body>
+</html>
