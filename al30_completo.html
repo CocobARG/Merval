@@ -457,40 +457,42 @@ const TIR_BASE = tirFromPrice(PRICE_BASE);
 document.getElementById('tir-stat').textContent = (TIR_BASE * 100).toFixed(2) + '%';
 document.getElementById('tir-value').textContent = (TIR_BASE * 100).toFixed(2) + '%';
 
-// Chart data
-const prices = [], tirs = [];
+// Chart data — scatter {x: precio, y: tir}
+const curveData = [];
 for (let p = 30; p <= 72.01; p += 0.25) {
   const pp = +p.toFixed(2);
-  prices.push(pp);
-  tirs.push(+(tirFromPrice(pp) * 100).toFixed(4));
+  curveData.push({ x: pp, y: +(tirFromPrice(pp) * 100).toFixed(4) });
 }
 
-function markerData(selPrice) {
-  return prices.map(p => Math.abs(p - selPrice) < 0.13 ? +(tirFromPrice(p) * 100).toFixed(4) : null);
+function markerPoint(selPrice) {
+  return [{ x: +selPrice.toFixed(2), y: +(tirFromPrice(selPrice) * 100).toFixed(4) }];
 }
 
 const chart = new Chart(document.getElementById('chart'), {
-  type: 'line',
+  type: 'scatter',
   data: {
-    labels: prices,
     datasets: [
       {
-        label: 'TIR (%)',
-        data: tirs,
+        label: 'Curva',
+        data: curveData,
         borderColor: '#00d4ff',
         backgroundColor: 'rgba(0,212,255,0.06)',
         borderWidth: 2,
         pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: '#00d4ff',
+        showLine: true,
         fill: true,
         tension: 0.3,
       },
       {
         label: 'Selección',
-        data: markerData(PRICE_BASE),
+        data: markerPoint(PRICE_BASE),
         borderColor: '#e24b4a',
         backgroundColor: '#e24b4a',
         borderWidth: 0,
-        pointRadius: prices.map(p => Math.abs(p - PRICE_BASE) < 0.13 ? 7 : 0),
+        pointRadius: 8,
+        pointHoverRadius: 10,
         showLine: false,
       }
     ]
@@ -498,7 +500,7 @@ const chart = new Chart(document.getElementById('chart'), {
   options: {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
+    interaction: { mode: 'nearest', intersect: false, axis: 'x' },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -507,11 +509,22 @@ const chart = new Chart(document.getElementById('chart'), {
         borderWidth: 1,
         titleColor: '#cdd9e8',
         bodyColor: '#6b8099',
+        padding: 10,
         callbacks: {
-          title: items => 'Precio: USD ' + Number(items[0].label).toFixed(2),
-          label: item => item.datasetIndex === 0 ? 'TIR: ' + Number(item.raw).toFixed(2) + '%' : null,
+          title: () => '',
+          label: item => {
+            if (item.datasetIndex === 0) {
+              return [
+                'Precio:  USD ' + item.parsed.x.toFixed(2),
+                'TIR:       ' + item.parsed.y.toFixed(2) + '%'
+              ];
+            }
+            return [
+              'Precio actual:  USD ' + item.parsed.x.toFixed(2),
+              'TIR actual:       ' + item.parsed.y.toFixed(2) + '%'
+            ];
+          },
         },
-        filter: item => item.datasetIndex === 0,
       }
     },
     scales: {
@@ -539,23 +552,25 @@ slider.addEventListener('input', () => {
   document.getElementById('slider-out').textContent = p.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('tir-label').textContent = 'USD ' + p.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('tir-value').textContent = tir.toFixed(2) + '%';
-  chart.data.datasets[1].data = markerData(p);
+  chart.data.datasets[1].data = markerPoint(p);
   chart.update('none');
 });
 
-// SENSITIVITY TABLE — 5.50% a 15.00% cada 100 bps
-const yields = [];
-for (let y = 5.50; y <= 15.01; y += 1.00) yields.push(+(y).toFixed(2));
+// SENSITIVITY TABLE — base = TIR actual, pasos de 100 bps arriba y abajo
+const TIR_BASE_PCT = +(TIR_BASE * 100).toFixed(2);
+const steps = [-400, -300, -200, -100, 0, 100, 200, 300, 400, 500, 600];
+const sensYields = steps.map(bps => +(TIR_BASE_PCT + bps / 100).toFixed(2));
 
 const tbody = document.getElementById('sens-body');
-yields.forEach(yPct => {
+sensYields.forEach(yPct => {
+  if (yPct <= 0) return;
   const r = yPct / 100;
   const price = priceFromTir(r);
   const delta = price - PRICE_BASE;
   const deltaPct = (delta / PRICE_BASE) * 100;
-  const isBase = Math.abs(yPct - TIR_BASE * 100) < 0.55;
-  const bpsDiff = Math.round((yPct - TIR_BASE * 100) * 100);
-  const bpsLabel = bpsDiff === 0 ? 'base' : (bpsDiff > 0 ? '+' + bpsDiff + ' bps' : bpsDiff + ' bps');
+  const bpsDiff = Math.round((yPct - TIR_BASE_PCT) * 100);
+  const bpsLabel = bpsDiff === 0 ? '— base' : (bpsDiff > 0 ? '+' + bpsDiff + ' bps' : bpsDiff + ' bps');
+  const isBase = bpsDiff === 0;
 
   const tr = document.createElement('tr');
   if (isBase) tr.className = 'current-sens';
@@ -575,7 +590,7 @@ yields.forEach(yPct => {
   tdPct.textContent = (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(2) + '%';
 
   const tdBps = document.createElement('td');
-  tdBps.style.color = '#4a6080';
+  tdBps.style.color = isBase ? '#00d4ff' : '#4a6080';
   tdBps.textContent = bpsLabel;
 
   tr.appendChild(tdYield);
